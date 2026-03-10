@@ -1,0 +1,120 @@
+/* === Compact Flatpickr === */
+.flatpickr-calendar {
+    font-size: 12px;
+    width: 320px;
+}
+/* 
+.flatpickr-months {
+    padding: 4px 6px;
+} */
+
+/* .flatpickr-current-month { 
+    font-size: 13px;
+}
+*/
+/* ===== SUMMARY CARD BASE ===== */
+.summary-card {
+    border-radius: 10px;
+    color: #fff;
+    border: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,.15);
+}
+
+.summary-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    opacity: .85;
+}
+
+.summary-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.summary-meta {
+    font-size: 0.7rem;
+    opacity: .9;
+}
+
+/* ===== WARNA PER JENIS ===== */
+.card-reklame {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+}
+
+.card-air {
+    background: linear-gradient(135deg, #17a2b8, #117a8b);
+}
+
+.card-hotel {
+    background: linear-gradient(135deg, #6f42c1, #4e2a8e);
+}
+
+.card-resto {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+}
+
+.card-parkir {
+    background: linear-gradient(135deg, #fd7e14, #e8590c);
+}
+
+.card-default {
+    background: linear-gradient(135deg, #6c757d, #495057);
+}
+
+.flatpickr-weekdays {
+    height: 28px;
+}
+
+.flatpickr-weekday {
+    font-size: 11px;
+}
+
+.flatpickr-day {
+    height: 28px;
+    line-height: 28px;
+    max-width: 28px;
+    font-size: 11px;
+}
+
+.flatpickr-day.today {
+    border-width: 1px;
+}
+
+.flatpickr-time {
+    display: none; /* jaga-jaga */
+}
+/* custom_flatpickr.css */
+
+/* Change the background color of the selected day */
+.flatpickr-day.selected {
+    background-color: #4CAF50; /* A custom green */
+    border-color: #4CAF50;
+}
+
+/* Change the text color of the month/year dropdowns */
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+    color: #FF5733; /* A custom orange */
+}
+
+/* Change the background of the calendar header */
+.flatpickr-months {
+    background-color: #f0f0f0; 
+}
+.summary-card {
+    cursor: pointer;
+    transition: all .15s ease-in-out;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+}
+
+.summary-card.border-primary {
+    border: 2px solid #0d6efd !important;
+}
