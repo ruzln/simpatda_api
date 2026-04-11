@@ -14,34 +14,35 @@ let rangePicker;
 
 let flagOffice = 0;
 
-let searchMode = 'normal'; // 'normal' atau 'wp'
+let searchMode = 'normal';   // 'normal' = per jenis (klik card), 'wp' = semua jenis untuk 1 WP
 let currentNpwpd = '';
 let currentNamaWp = '';
 
 // =======================
-// INIT & EVENT LISTENER
+// INIT
 // =======================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('combined.js loaded');
+
     setPresetTanggal('year');
     bindSearch();
     bindPagination();
     initRangePicker();
 
-    // Filter status
+    // Filter Status
     const filterStatusEl = document.getElementById('filterStatus');
     if (filterStatusEl) {
-            filterStatusEl.addEventListener('change', e => {
-                currentStatus = e.target.value.trim();
-                console.log('[FILTER] Status diubah menjadi:', currentStatus);
-                currentPage = 1;
-                loadTableCombined();
-            });
-        } else {
+        filterStatusEl.addEventListener('change', e => {
+            currentStatus = e.target.value.trim();
+            console.log('[FILTER] Status diubah menjadi:', currentStatus);
+            currentPage = 1;
+            loadTableCombined();
+        });
+    } else {
         console.warn('[FILTER] Elemen #filterStatus tidak ditemukan');
     }
 
-    // Page size
+    // Page Size
     const pageSizeEl = document.getElementById('pageSize');
     if (pageSizeEl) {
         pageSizeEl.addEventListener('change', e => {
@@ -52,10 +53,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    //Export
+    // Tombol Export Excel
     const btnExport = document.getElementById('btnExportExcel');
     if (btnExport) {
         btnExport.addEventListener('click', () => {
+            if (searchMode !== 'wp' || (!currentNpwpd && !currentNamaWp)) {
+                alert('Silakan cari NPWPD atau Nama WP terlebih dahulu');
+                return;
+            }
+
             const body = {
                 tgl_dari: tglDari,
                 tgl_sampai: tglSampai,
@@ -78,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'Tagihan_WP.xlsx';
+                a.download = `Tagihan_WP_${currentNpwpd || currentNamaWp}_${new Date().toISOString().slice(0,10)}.csv`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -86,35 +92,27 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(err => {
                 console.error('Export error:', err);
-                alert('Gagal export Excel: ' + err.message);
+                alert('Gagal export data. Silakan coba lagi.');
             });
         });
     }
 });
 
 function initRangePicker() {
-    // Pastikan locale 'id' sudah ada, fallback ke 'en' kalau gagal
-    if (!flatpickr.l10ns.id) {
-        console.warn('Locale "id" tidak ditemukan, fallback ke default (en)');
-    }
-
     rangePicker = flatpickr("#rangeTanggal", {
         mode: "range",
         dateFormat: "Y-m-d",
-        locale: flatpickr.l10ns.id || "en",  // fallback aman
-        allowInput: true,
-        onReady: function(selectedDates, dateStr, instance) {
-            console.log('Flatpickr siap dengan locale:', instance.config.locale);
-        }
+        locale: "id",
+        allowInput: true
     });
 
-    const btnApply = document.getElementById('btnApplyRange');
-    const btnReset = document.getElementById('btnResetRange');
-
-    if (btnApply) btnApply.onclick = applyRangeTanggal;
-    if (btnReset) btnReset.onclick = resetRangeTanggal;
+    document.getElementById('btnApplyRange').onclick = applyRangeTanggal;
+    document.getElementById('btnResetRange').onclick = resetRangeTanggal;
 }
 
+// =======================
+// DATE & PRESET
+// =======================
 function applyRangeTanggal() {
     const dates = rangePicker.selectedDates;
     if (dates.length !== 2) {
@@ -122,17 +120,10 @@ function applyRangeTanggal() {
         return;
     }
 
-    tglDari   = formatDateLocal(dates[0]);
+    tglDari = formatDateLocal(dates[0]);
     tglSampai = formatDateLocal(dates[1]);
 
-    currentJenis = '';
-    currentPage  = 1;
-    searchMode = 'normal';
-    currentNpwpd = '';
-    currentNamaWp = '';
-    document.getElementById('searchInput').value = ''; // reset search box
-    document.getElementById('table-title').textContent = 'Detail SKPRD – Pilih jenis pajak di atas';
-
+    resetToNormalMode();
     loadSummaryCombined();
     clearTable();
 }
@@ -153,26 +144,31 @@ function setPresetTanggal(type) {
     const now = new Date();
 
     if (type === 'today') {
-        tglDari   = formatDateLocal(now);
+        tglDari = formatDateLocal(now);
         tglSampai = formatDateLocal(now);
     } else if (type === 'month') {
-        tglDari   = formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 1));
+        tglDari = formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 1));
         tglSampai = formatDateLocal(now);
     } else if (type === 'year') {
-        tglDari   = formatDateLocal(new Date(now.getFullYear(), 0, 1));
+        tglDari = formatDateLocal(new Date(now.getFullYear(), 0, 1));
         tglSampai = formatDateLocal(now);
     }
 
+    resetToNormalMode();
+    loadSummaryCombined();
+    clearTable();
+}
+
+function resetToNormalMode() {
     currentJenis = '';
     currentPage = 1;
     searchMode = 'normal';
     currentNpwpd = '';
     currentNamaWp = '';
+    currentQuery = '';
+    currentStatus = '';
     document.getElementById('searchInput').value = '';
     document.getElementById('table-title').textContent = 'Detail SKPRD – Pilih jenis pajak di atas';
-
-    loadSummaryCombined();
-    clearTable();
 }
 
 // =======================
@@ -189,7 +185,6 @@ function headers() {
 // SUMMARY CARDS
 // =======================
 function loadSummaryCombined() {
-    console.log('Load summary dengan periode:', tglDari, 's/d', tglSampai);
     fetch('/api/skprd/combined/summary', {
         method: 'POST',
         headers: headers(),
@@ -199,14 +194,8 @@ function loadSummaryCombined() {
             flag: flagOffice
         })
     })
-    .then(r => {
-        if (!r.ok) throw new Error(`Summary HTTP ${r.status}`);
-        return r.json();
-    })
-    .then(res => {
-        console.log('Summary response:', res);
-        renderSummaryCards(res.summary_by_jenis || []);
-    })
+    .then(r => r.json())
+    .then(res => renderSummaryCards(res.summary_by_jenis || []))
     .catch(err => {
         console.error('Error load summary:', err);
         document.getElementById('summary-cards').innerHTML = '<div class="col-12 text-danger">Gagal memuat ringkasan</div>';
@@ -218,7 +207,7 @@ function renderSummaryCards(data) {
     wrap.innerHTML = '';
 
     if (!data.length) {
-        wrap.innerHTML = '<div class="col-12 text-muted text-center py-4">Tidak ada data</div>';
+        wrap.innerHTML = '<div class="col-12 text-muted text-center py-4">Tidak ada data untuk periode ini</div>';
         return;
     }
 
@@ -255,6 +244,7 @@ function renderSummaryCards(data) {
             searchMode = 'normal';
             currentNpwpd = '';
             currentNamaWp = '';
+            currentQuery = '';
             document.getElementById('searchInput').value = '';
             document.getElementById('table-title').textContent = `Detail SKPRD ${getJenisLabel(currentJenis)}`;
             loadTableCombined();
@@ -265,14 +255,11 @@ function renderSummaryCards(data) {
 }
 
 // =======================
-// SEARCH
+// SEARCH - DIPERBAIKI
 // =======================
 function bindSearch() {
     const input = document.getElementById('searchInput');
-    if (!input) {
-        console.warn('Input search tidak ditemukan');
-        return;
-    }
+    if (!input) return;
 
     let timer;
     input.addEventListener('input', () => {
@@ -291,19 +278,18 @@ function bindSearch() {
                 return;
             }
 
-            console.log('Search input:', q);
-
-            // Deteksi NPWPD (format dengan titik atau panjang angka)
+            // Deteksi NPWPD (format standar NPWPD)
             if (/^\d{1,2}\.\d{8}\.\d{2}\.\d{2}$/.test(q) || q.replace(/\D/g, '').length > 12) {
                 currentNpwpd = q.toUpperCase();
                 currentNamaWp = '';
                 searchMode = 'wp';
-                document.getElementById('table-title').textContent = `Daftar Tagihan NPWPD: ${q}`;
+                document.getElementById('table-title').textContent = `Daftar Semua Tagihan NPWPD: ${q}`;
             } else {
-                currentNamaWp = q.toUpperCase();
-                currentNpwpd = '';
-                searchMode = 'wp';
-                document.getElementById('table-title').textContent = `Daftar Tagihan WP: ${q}`;
+                // Search nama WP → tetap di dalam jenis yang sedang aktif (klik card)
+                currentQuery = q;
+                searchMode = 'normal';
+                document.getElementById('table-title').textContent = 
+                    `Detail SKPRD ${getJenisLabel(currentJenis)} - Pencarian: ${q}`;
             }
 
             currentPage = 1;
@@ -313,7 +299,191 @@ function bindSearch() {
 }
 
 // =======================
-// PAGINATION
+// LOAD TABLE
+// =======================
+function loadTableCombined() {
+    // Loading indicator
+    document.getElementById('skprd-table-body').innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2">Memuat data...</div>
+            </td>
+        </tr>`;
+
+    const body = {
+        tgl_dari: tglDari,
+        tgl_sampai: tglSampai,
+        flag: flagOffice,
+        page: currentPage,
+        per_page: perPage,
+        status: currentStatus || null,
+    };
+
+    if (searchMode === 'wp') {
+        if (currentNpwpd) body.npwpd = currentNpwpd;
+        if (currentNamaWp) body.nama_wp = currentNamaWp;
+    } else {
+        // Mode normal (klik card)
+        if (!currentJenis) return;
+        body.jenis = currentJenis;
+        if (currentQuery) body.q = currentQuery;   // search di dalam jenis aktif
+    }
+
+    fetch('/api/skprd/combined', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(res => renderTableCombined(res))
+    .catch(err => {
+        console.error('Load table error:', err);
+        document.getElementById('skprd-table-body').innerHTML = `
+            <tr><td colspan="7" class="text-center text-danger py-5">
+                Gagal memuat data
+            </td></tr>`;
+    });
+}
+
+// =======================
+// RENDER TABLE & LAINNYA
+// =======================
+// =======================
+// RENDER TABLE
+// =======================
+function renderTableCombined(res) {
+    const tbody = document.getElementById('skprd-table-body');
+    tbody.innerHTML = '';
+
+    if (!res.data || res.data.length === 0) {
+        let msg = 'Tidak ada data ditemukan';
+        if (currentStatus) {
+            const statusText = currentStatus === 'lunas' ? 'Lunas' : 
+                              currentStatus === 'sebagian' ? 'Sebagian' : 'Belum Bayar';
+            msg += ` untuk status <strong>${statusText}</strong>`;
+        }
+        if (searchMode === 'wp') {
+            msg += ` pada pencarian WP/NPWPD ini`;
+        }
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted py-5">
+                    ${msg}. Coba ubah filter atau periode tanggal.
+                </td>
+            </tr>`;
+        updatePagination(res.meta);
+        updateExportButton();
+        return;
+    }
+
+    res.data.forEach((row, i) => {
+        const pajak = Number(row.jml_pajak ?? row.JML_PAJAK ?? 0);
+        const bayar = Number(row.jml_bayar ?? row.JML_BAYAR ?? row.jml_tbp ?? row.JML_TBP ?? 0);
+        const sisa  = Number(row.jml_sisa  ?? row.JML_SISA ?? 0);
+        const tglBayar = row.tgl_bayar ?? row.TGL_BAYAR ?? '';
+
+        // STATUS BADGE
+        let statusBadge = `<span class="badge badge-danger">Belum Bayar</span>`;
+        if (bayar >= pajak) {
+            if (sisa > 0) {
+                statusBadge = `<span class="badge badge-success">Lunas <small>(Ada Denda)</small></span>`;
+            } else {
+                statusBadge = `<span class="badge badge-success">Lunas</span>`;
+            }
+        } else if (bayar > 0) {
+            statusBadge = `<span class="badge badge-warning">Sebagian</span>`;
+        }
+
+        const bayarHtml = bayar > 0
+            ? `${rupiah(bayar)}<br><small class="text-muted">${tglBayar || '-'}</small>`
+            : '-';
+
+        tbody.innerHTML += `
+            <tr class="align-middle">
+                <td class="text-center">${(currentPage - 1) * perPage + i + 1}</td>
+                <td>
+                    <div class="text-xs text-muted">${row.tgl_sk ?? '-'}</div>
+                    <div class="font-medium text-slate-800">${row.no_sk ?? row.NO_SK ?? row.NO_SPTPD ?? '-'}</div>
+                </td>
+                <td>
+                    <div class="font-medium text-slate-800">${row.nama_wp ?? row.NAMA_WP ?? '-'}</div>
+                    <div class="text-xs text-muted">NPWPD: ${row.npwpd ?? row.NPWPD ?? '-'}</div>
+                </td>
+                <td class="text-right font-semibold">${rupiah(pajak)}</td>
+                <td class="text-right text-emerald-600">${bayarHtml}</td>
+                <td class="text-right ${sisa > 0 ? 'text-rose-600' : 'text-emerald-600'}">${rupiah(sisa)}</td>
+                <td class="text-center">${statusBadge}</td>
+            </tr>
+        `;
+    });
+
+    updatePagination(res.meta);
+    updateExportButton();
+
+    // Update judul table
+    if (searchMode === 'wp') {
+        document.getElementById('table-title').textContent = 
+            currentNpwpd ? `Daftar Semua Tagihan NPWPD: ${currentNpwpd}` : `Daftar Semua Tagihan WP: ${currentNamaWp}`;
+    } else {
+        document.getElementById('table-title').textContent = `Detail SKPRD ${getJenisLabel(currentJenis)}`;
+    }
+}
+
+// =======================
+// PAGINATION & UTIL
+// =======================
+function updatePagination(meta) {
+    totalPage = Math.ceil((meta.total || 0) / (meta.per_page || 10));
+    document.getElementById('pageInfo').textContent = `Halaman ${meta.page || 1} / ${totalPage}`;
+    document.getElementById('btnPrev').disabled = (meta.page || 1) <= 1;
+    document.getElementById('btnNext').disabled = (meta.page || 1) >= totalPage;
+}
+
+function clearTable() {
+    document.getElementById('skprd-table-body').innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center text-muted py-5">
+                Pilih jenis pajak atau cari NPWPD/Nama WP
+            </td>
+        </tr>`;
+}
+
+function rupiah(value) {
+    return 'Rp ' + (parseInt(value) || 0).toLocaleString('id-ID');
+}
+
+function getJenisLabel(jenis) {
+    const labels = {
+        'HOTEL':    'PBJT Jasa Perhotelan',
+        'RESTO':    'PBJT Makan/ Minum',
+        'HIBURAN':  'PBJT Jasa Kesenian dan Hiburan',
+        'PARKIR':   'Pajak Parkir',
+        'MGOLC':    'Pajak MBLB',
+        'PENER':    'PBJT Tenaga Listrik',
+        'REKLA':    'Pajak Reklame',
+        'AIRTN':    'Pajak Air Tanah',
+        'LAINNYA':  'Pajak Lainnya'
+    };
+    return labels[jenis?.toUpperCase()] || jenis?.toUpperCase() || 'Tidak Dikenal';
+}
+
+// Tombol Export 
+// Tombol Export Excel
+function updateExportButton() {
+    const btnExport = document.getElementById('btnExportExcel');
+    if (!btnExport) return;
+
+    // Tombol hanya muncul di mode WP (setelah search NPWPD atau nama WP)
+    if (searchMode === 'wp' && (currentNpwpd || currentNamaWp)) {
+        btnExport.classList.remove('d-none');
+    } else {
+        btnExport.classList.add('d-none');
+    }
+}
+
+// =======================
+// BIND PAGINATION
 // =======================
 function bindPagination() {
     document.getElementById('btnPrev')?.addEventListener('click', () => {
@@ -331,218 +501,9 @@ function bindPagination() {
     });
 }
 
-// =======================
-// LOAD TABLE
-// =======================
-function loadTableCombined() {
-    document.getElementById('skprd-table-body').innerHTML = `
-    <tr>
-        <td colspan="7" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <div class="mt-2">Memuat data...</div>
-        </td>
-    </tr>`;
-    console.log('[TABLE] Load dipanggil | Mode:', searchMode, '| Jenis:', currentJenis, '| Status:', currentStatus, '| Page:', currentPage);
-
-    if (searchMode === 'wp' && !currentNpwpd && !currentNamaWp) {
-        console.warn('[TABLE] Mode WP tapi tidak ada NPWPD/Nama');
-        return;
-    }
-
-    if (searchMode === 'normal' && !currentJenis) {
-        console.warn('[TABLE] Mode normal tapi currentJenis kosong');
-        document.getElementById('skprd-table-body').innerHTML = `
-            <tr><td colspan="7" class="text-center text-warning py-5">
-                Pilih jenis pajak atau cari NPWPD/Nama WP
-            </td></tr>`;
-        return;
-    }
-
-    const body = {
-        tgl_dari: tglDari,
-        tgl_sampai: tglSampai,
-        flag: flagOffice,
-        page: currentPage,
-        per_page: perPage,
-        status: currentStatus || null,  // kirim null kalau kosong
-    };
-
-    if (searchMode === 'wp') {
-        if (currentNpwpd) body.npwpd = currentNpwpd;
-        if (currentNamaWp) body.nama_wp = currentNamaWp;
-    } else {
-        body.jenis = currentJenis;
-    }
-
-    console.log('[TABLE] Body request:', body);
-
-    fetch('/api/skprd/combined', {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify(body)
-    })
-    .then(r => {
-        console.log('[TABLE] Status HTTP:', r.status);
-        if (!r.ok) {
-            return r.text().then(text => { throw new Error(`HTTP ${r.status}: ${text}`); });
-        }
-        return r.json();
-    })
-    .then(res => {
-        console.log('[TABLE] Response diterima:', res);
-        renderTableCombined(res);
-    })
-    .catch(err => {
-        console.error('[TABLE] Error:', err);
-        document.getElementById('skprd-table-body').innerHTML = `
-            <tr><td colspan="7" class="text-center text-danger py-5">
-                Gagal memuat: ${err.message}
-            </td></tr>`;
-    });
-}
-
-// =======================
-// RENDER TABLE
-// =======================
-function renderTableCombined(res) {
-    const tbody = document.getElementById('skprd-table-body');
-    tbody.innerHTML = '';
-
-   if (!res.data || res.data.length === 0) {
-        let msg = 'Tidak ada data';
-        if (currentStatus) {
-            msg += ` untuk status "${currentStatus === 'lunas' ? 'Lunas' : currentStatus === 'sebagian' ? 'Sebagian' : 'Belum Bayar'}"`;
-        }
-        if (searchMode === 'wp') {
-            msg += ` pada pencarian WP/NPWPD ini`;
-        }
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center text-muted py-5">
-                    ${msg}. Coba ubah filter atau periode tanggal.
-                </td>
-            </tr>`;
-    }
-
-    res.data.forEach((row, i) => {
-        const pajak = Number(row.jml_pajak ?? row.JML_PAJAK ?? 0);
-        const bayar = Number(row.jml_bayar ?? row.JML_BAYAR ?? row.jml_tbp ?? row.JML_TBP ?? 0);
-        const sisa  = Number(row.jml_sisa  ?? row.JML_SISA ?? 0);
-        const tglBayar = row.tgl_bayar ?? row.TGL_BAYAR ?? '';
-
-        // STATUS BADGE - logika lebih akurat (pokok lunas = lunas, meskipun ada denda/sisa)
-        if (bayar >= pajak) {
-            if (sisa > 0) {
-                statusBadge = `<span class="badge badge-info">(Sisa Denda ${rupiah(sisa)})</span>`;
-            } else {
-                statusBadge = `<span class="badge badge-success">Lunas</span>`;
-            }
-        } else if (bayar > 0) {
-            statusBadge = `<span class="badge badge-warning">Sebagian</span>`;
-        } else {
-            statusBadge = `<span class="badge badge-danger">Belum Bayar</span>`;
-        }
-
-        const bayarHtml = bayar > 0
-            ? `${rupiah(bayar)}<br><small class="text-muted">${tglBayar || '-'}</small>`
-            : '-';
-
-        tbody.innerHTML += `
-            <tr class="align-middle">
-                <td class="text-center">
-                    ${(currentPage - 1) * perPage + i + 1}
-                </td>
-                <td>
-                    <div class="text-xs text-muted">${row.tgl_sk ?? '-'}</div>
-                    <div class="font-medium text-slate-800">${row.no_sk ?? row.NO_SK ?? row.NO_SPTPD ?? '-'}</div>
-                </td>
-                <td>
-                    <div class="font-medium text-slate-800">
-                        ${row.nama_wp ?? row.NAMA_WP ?? '-'}
-                    </div>
-                    <div class="text-xs text-muted">
-                        NPWPD: ${row.npwpd ?? row.NPWPD ?? '-'}
-                    </div>
-                </td>
-                <td class="text-right font-semibold">
-                    ${rupiah(pajak)}
-                </td>
-                <td class="text-right text-emerald-600">
-                    ${bayarHtml}
-                </td>
-                <td class="text-right ${sisa > 0 ? 'text-rose-600' : 'text-emerald-600'}">
-                    ${rupiah(sisa)}
-                </td>
-                <td class="text-center">
-                    ${statusBadge}
-                </td>
-            </tr>
-        `;
-    });
-
-    updatePagination(res.meta);
-    updateExportButton();
-
-    // Update judul table sesuai mode
-    if (searchMode === 'wp') {
-        document.getElementById('table-title').textContent = 
-            currentNpwpd ? `Daftar Tagihan NPWPD: ${currentNpwpd}` : `Daftar Tagihan WP: ${currentNamaWp}`;
-    } else {
-        document.getElementById('table-title').textContent = 
-            `Detail SKPRD ${getJenisLabel(currentJenis)}`;
-    }
-}
-
-// =======================
-// PAGINATION & UTIL
-// =======================
-function updatePagination(meta) {
-    totalPage = Math.ceil((meta.total || 0) / (meta.per_page || 10));
-
-    document.getElementById('pageInfo').textContent = 
-        `Halaman ${meta.page || 1} / ${totalPage}`;
-
-    document.getElementById('btnPrev').disabled = (meta.page || 1) <= 1;
-    document.getElementById('btnNext').disabled = (meta.page || 1) >= totalPage;
-}
-
-function clearTable() {
-    document.getElementById('skprd-table-body').innerHTML = `
-        <tr>
-            <td colspan="7" class="text-center text-muted py-5">
-                Pilih jenis pajak atau cari NPWPD/Nama WP
-            </td>
-        </tr>
-    `;
-}
-
-function rupiah(value) {
-    return 'Rp ' + (parseInt(value) || 0).toLocaleString('id-ID');
-}
-
-function getJenisLabel(jenis) {
-    const labels = {
-        'HOTEL':    'Pajak Hotel',
-        'RESTO':    'Pajak Restoran',
-        'HIBURAN':  'Pajak Hiburan',
-        'PARKIR':   'Pajak Parkir',
-        'MGOLC':    'Pajak Mineral & Batubara',
-        'PENER':    'Pajak Penerangan Jalan',
-        'REKLA':    'Reklame',
-        'AIRTN':    'Air Tanah',
-        'LAINNYA':  'Pajak Lainnya'
-    };
-    return labels[jenis?.toUpperCase()] || jenis?.toUpperCase() || 'Tidak Dikenal';
-}
-
-// Tombol Export Excel (hanya aktif di mode WP)
 function updateExportButton() {
     const btnExport = document.getElementById('btnExportExcel');
     if (btnExport) {
-        if (searchMode === 'wp' && (currentNpwpd || currentNamaWp)) {
-            btnExport.classList.remove('d-none');
-        } else {
-            btnExport.classList.add('d-none');
-        }
+        btnExport.classList.toggle('d-none', searchMode !== 'wp' || (!currentNpwpd && !currentNamaWp));
     }
 }
