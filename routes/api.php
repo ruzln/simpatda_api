@@ -37,9 +37,4 @@ Route::post('/pbb/realisasi', [PbbController::class, 'realisasi']);
 
 Route::post('/skprd/combined/summary',  [SkprdController::class, 'combinedSummary']);
 Route::post('/skprd/combined',          [SkprdController::class, 'combined']);
-Route::post('/skprd/export-wp',         [SkprdController::class, 'exportWp']);
-
-
-
-
-
+Route::post('/skprd/export-wp',         [SkprdController::class, 'exportWpCsv']);

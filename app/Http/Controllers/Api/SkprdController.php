@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Resources\SkprdResource;
-use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\WpTagihanExport;
 
 class SkprdController extends Controller
@@ -437,100 +436,143 @@ class SkprdController extends Controller
     }
 
     /**
-     * Export Excel
+     * EXPORT CSV PER WP/NPWPD - Versi Ringan & Stabil
      */
-    public function exportWp(Request $request)
-    {
-        try {
-            $request->validate([
-                'tgl_dari'   => 'required|date',
-                'tgl_sampai' => 'required|date',
-                'npwpd'      => 'required_without:nama_wp|string',
-                'nama_wp'    => 'required_without:npwpd|string',
-                'flag'       => 'sometimes|integer',
-            ]);
+    /**
+ * EXPORT CSV PER WP/NPWPD - Versi Final
+ */
+public function exportWpCsv(Request $request)
+{
+    try {
+        $request->validate([
+            'tgl_dari'   => 'required|date',
+            'tgl_sampai' => 'required|date',
+            'npwpd'      => 'required_without:nama_wp|string',
+            'nama_wp'    => 'required_without:npwpd|string',
+            'flag'       => 'sometimes|integer',
+        ]);
 
-            $flag = $request->input('flag', 0);
-            $npwpd = $request->npwpd ? strtoupper(trim($request->npwpd)) : null;
-            $namaWp = $request->nama_wp ? strtoupper(trim($request->nama_wp)) : null;
+        $flag = $request->input('flag', 0);
+        $npwpd = $request->npwpd ? strtoupper(trim($request->npwpd)) : null;
+        $namaWp = $request->nama_wp ? strtoupper(trim($request->nama_wp)) : null;
 
-            Log::info('Export WP dimulai', ['npwpd' => $npwpd, 'nama_wp' => $namaWp]);
+        $allRows = collect();
 
-            $allRows = collect();
-
-            // Ambil semua jenis self
-            $jenisSelf = ['HOTEL', 'RESTO', 'HIBURAN', 'PARKIR', 'MGOLC', 'PENER', 'LAINNYA'];
-            foreach ($jenisSelf as $j) {
-                $rows = collect(DB::connection('firebird')->select(
-                    "SELECT * FROM DAFTAR_SPTPD_V2(?, ?, ?)",
-                    [$request->tgl_dari, $request->tgl_sampai, $j]
-                ));
-                $allRows = $allRows->merge($rows);
-            }
-
-            // Ambil semua jenis office
-            $jenisOffice = ['REKLA', 'AIRTN'];
-            foreach ($jenisOffice as $j) {
-                $rows = collect(DB::connection('firebird')->select(
-                    "SELECT * FROM DAFTAR_SKPRD_V2(?, ?, ?, ?)",
-                    [$request->tgl_dari, $request->tgl_sampai, $j, $flag]
-                ));
-                $allRows = $allRows->merge($rows);
-            }
-
-            Log::info('Rows setelah ambil semua jenis: ' . $allRows->count());
-
-            // Filter NPWPD exact
-            if ($npwpd) {
-                $allRows = $allRows->filter(fn($r) => strtoupper($r->NPWPD ?? '') === $npwpd);
-            }
-
-            // Filter nama WP partial
-            if ($namaWp) {
-                $allRows = $allRows->filter(fn($r) => str_contains(strtoupper($r->NAMA_WP ?? ''), $namaWp));
-            }
-
-            Log::info('Rows setelah filter WP: ' . $allRows->count());
-
-            if ($allRows->isEmpty()) {
-                Log::warning('Tidak ada data untuk export WP');
-                return response()->json(['status' => 'error', 'message' => 'Tidak ada tagihan untuk WP ini'], 404);
-            }
-
-            // Map data aman untuk export (hilangkan object nested)
-            $exportRows = $allRows->map(function ($row) {
-                return (object) [
-                    'tgl_sk' => $row->tgl_sk ?? null,
-                    'no_sk' => $row->no_sk ?? $row->NO_SK ?? $row->NO_SPTPD ?? null,
-                    'nama_wp' => $row->nama_wp ?? $row->NAMA_WP ?? null,
-                    'npwpd' => $row->npwpd ?? $row->NPWPD ?? null,
-                    'jml_pajak' => $row->JML_PAJAK ?? 0,
-                    'jml_bayar' => $row->JML_BAYAR ?? $row->JML_TBP ?? 0,
-                    'tgl_bayar' => $row->tgl_bayar ?? null,
-                    'jml_sisa' => $row->JML_SISA ?? 0,
-                    'jenis_pajak' => $row->JENIS_PAJAK ?? $row->JENIS ?? 'LAINNYA',
-                ];
-            });
-
-            $filename = 'Tagihan_WP_' . ($npwpd ?? str_replace(' ', '_', $namaWp ?? 'Unknown')) . '_' . now()->format('Ymd_His') . '.xlsx';
-
-            Log::info('Mulai download Excel: ' . $filename);
-
-            return Excel::download(
-                new WpTagihanExport($exportRows),
-                $filename
-            );
-        } catch (\Exception $e) {
-            Log::error('Export WP gagal', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
-            ]);
-
-        return Excel::download(
-            new WpTagihanExport($exportRows),
-            $filename
-        );
+        // Ambil semua jenis Self
+        $jenisSelf = ['HOTEL', 'RESTO', 'HIBURAN', 'PARKIR', 'MGOLC', 'PENER', 'LAINNYA'];
+        foreach ($jenisSelf as $j) {
+            $rows = collect(DB::connection('firebird')->select(
+                "SELECT * FROM DAFTAR_SPTPD_V2(?, ?, ?)",
+                [$request->tgl_dari, $request->tgl_sampai, $j]
+            ));
+            $allRows = $allRows->merge($rows);
         }
+
+        // Ambil semua jenis Office
+        $jenisOffice = ['REKLA', 'AIRTN'];
+        foreach ($jenisOffice as $j) {
+            $rows = collect(DB::connection('firebird')->select(
+                "SELECT * FROM DAFTAR_SKPRD_V2(?, ?, ?, ?)",
+                [$request->tgl_dari, $request->tgl_sampai, $j, $flag]
+            ));
+            $allRows = $allRows->merge($rows);
+        }
+
+        // Filter NPWPD atau Nama WP
+        if ($npwpd) {
+            $allRows = $allRows->filter(fn($r) => strtoupper($r->NPWPD ?? '') === $npwpd);
+        }
+        if ($namaWp) {
+            $allRows = $allRows->filter(fn($r) => str_contains(strtoupper($r->NAMA_WP ?? ''), $namaWp));
+        }
+
+        if ($allRows->isEmpty()) {
+            return response()->json(['status' => 'error', 'message' => 'Tidak ada data tagihan untuk WP ini'], 404);
+        }
+
+        // Mapping nama jenis pajak sesuai JS kamu
+        $jenisMapping = [
+            'REKLA'   => 'Pajak Reklame',
+            'RESTO'   => 'PBJT Makan Minum',
+            'PPJ'   => 'PBJT Tenaga Listrik',
+            'AIRTN'   => 'Pajak Air Tanah',
+            'HOTEL'   => 'PBJT Jasa Perhotelan',
+            'MGOLC'   => 'Pajak MBLB',
+            'HIBURAN' => 'Pajak Hiburan',
+            'PARKIR'  => 'Pajak Parkir',
+        ];
+
+        $filename = 'Tagihan_WP_' . ($npwpd ?? str_replace(' ', '_', $namaWp ?? 'Unknown')) . '_' . now()->format('Ymd_His') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($allRows, $jenisMapping) {
+            $file = fopen('php://output', 'w');
+            
+            fputcsv($file, [
+                'No', 'Tgl SK', 'No SK', 'Jenis Pajak', 'Nama Wajib Pajak', 
+                'NPWPD', 'Ketetapan (Rp)', 'Bayar (Rp)', 'Tgl Bayar', 'Sisa (Rp)', 'Status'
+            ]);
+
+            $no = 1;
+            foreach ($allRows as $row) {
+                $bayar = $row->JML_BAYAR ?? $row->JML_TBP ?? 0;
+                $sisa  = $row->JML_SISA ?? 0;
+                $pajak = $row->JML_PAJAK ?? 0;
+
+                // === AMBIL KODE JENIS DENGAN FALLBACK PALING KUAT ===
+                $kodeJenis = strtoupper(trim(
+                    $row->JENIS_PAJAK ?? 
+                    $row->jenis_pajak ?? 
+                    $row->JENIS ?? 
+                    $row->jenis ?? 
+                    ''
+                ));
+
+                // Deteksi dari No SK (paling reliable untuk REKLA, PPJ, dll)
+                if (empty($kodeJenis)) {
+                    $noSk = strtoupper($row->no_sk ?? $row->NO_SK ?? '');
+                    if (preg_match('/\/([A-Z]+)/', $noSk, $matches)) {
+                        $kodeJenis = $matches[1];
+                    }
+                }
+
+                // Mapping ke nama lengkap
+                $namaJenis = $jenisMapping[$kodeJenis] ?? 'Pajak Lainnya';
+
+                $status = 'Belum Bayar';
+                if ($bayar >= $pajak) {
+                    $status = $sisa > 0 ? 'Lunas (Ada Denda)' : 'Lunas';
+                } elseif ($bayar > 0) {
+                    $status = 'Sebagian';
+                }
+
+                fputcsv($file, [
+                    $no++,
+                    $row->tgl_sk ?? $row->TGL_SK ?? '',
+                    $row->no_sk ?? $row->NO_SK ?? $row->NO_SPTPD ?? '',
+                    $namaJenis,                    // ← Hasil akhir
+                    $row->nama_wp ?? $row->NAMA_WP ?? '',
+                    $row->npwpd ?? $row->NPWPD ?? '',
+                    $pajak,
+                    $bayar,
+                    $row->tgl_bayar ?? $row->TGL_BAYAR ?? '',
+                    $sisa,
+                    $status
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+
+    } catch (\Exception $e) {
+        Log::error('Export WP CSV gagal: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        return response()->json(['status' => 'error', 'message' => 'Gagal export: ' . $e->getMessage()], 500);
     }
+}
+
 }
