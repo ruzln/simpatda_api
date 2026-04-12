@@ -6,41 +6,32 @@
 <div id="content">
 <div class="container-fluid">
 
-<div class="row mb-2">
-    <div class="col">
-        <button class="btn btn-sm btn-primary" onclick="setPresetTanggal('today')">Hari ini</button>
-        <button class="btn btn-sm btn-primary" onclick="setPresetTanggal('month')">Bulan ini</button>
-        <button class="btn btn-sm btn-primary" onclick="setPresetTanggal('year')">Tahun ini</button>
-    </div>
-</div>
-<div class="row mb-2 align-items-end">
-    <div class="col-md-3">
-        <input type="text"
-               id="rangeTanggal"
-               class="form-control"
-               placeholder="Pilih range tanggal">
-    </div>
+    <div class="row mb-3 align-items-end">
+        <div class="col-md-3">
+            <input type="text" id="rangeTanggal" class="form-control" placeholder="Pilih range tanggal">
+        </div>
 
-    <div class="col-md-auto">
-        <button id="btnApplyRange"
-                class="btn btn-secondary btn-icon-split btn-sm">
-            <span class="icon text-white-50">
-                <i class="fas fa-arrow-right"></i>
-            </span>
-            <span class="text">Ok</span>
-        </button>
-    </div>
+        <div class="col-md-auto">
+            <button id="btnApplyRange" class="btn btn-secondary btn-icon-split btn-sm">
+                <span class="icon text-white-50"><i class="fas fa-arrow-right"></i></span>
+                <span class="text">Terapkan</span>
+            </button>
+        </div>
 
-    <div class="col-md-auto">
-        <button id="btnResetRange"
-                class="btn btn-primary btn-icon-split btn-sm">
-            <span class="icon text-white-50">
-                <i class="fas fa-trash"></i>
-            </span>
-            <span class="text">Reset</span>
-        </button>
+        <div class="col-md-auto">            
+            <button class="btn btn-sm btn-primary" onclick="setPresetTanggal('today')">Hari ini</button>
+            <button class="btn btn-sm btn-primary" onclick="setPresetTanggal('month')">Bulan ini</button>
+            <button class="btn btn-sm btn-primary" onclick="setPresetTanggal('year')">Tahun ini</button>
+        </div>
+
+        <div class="col-md-auto">
+            <button id="btnResetRange" class="btn btn-primary btn-icon-split btn-sm">
+                <span class="icon text-white-50"><i class="fas fa-trash"></i></span>
+                <span class="text">Reset</span>
+            </button>
+        </div>
+
     </div>
-</div>
 
 
 <div class="row" id="summary-cards"></div>
