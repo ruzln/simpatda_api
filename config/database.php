@@ -45,8 +45,8 @@ return [
 
         'firebird' => [
             'driver'         => 'firebird',
-            // 'host'           => env('DB_HOST', '192.168.88.1'),
-            'host'           => env('DB_HOST', 'localhost'),
+            'host'           => env('DB_HOST', '192.168.88.1'),
+            // 'host'           => env('DB_HOST', 'localhost'),
             'database'       => env('DB_DATABASE', 'C:/GIM/SERUYAN/SIMPATDA/DB/simpatda'),
             'username'       => env('DB_USERNAME', 'SYSDBA'),
             'password'       => env('DB_PASSWORD', 'masterkey'),

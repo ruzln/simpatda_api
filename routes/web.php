@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Dashboard\SkprdDashboardController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SkprdController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,3 +30,5 @@ Route::get('/pbb', function () {
 Route::get('/skprd/combined', function () {
     return view('skprd.combined');
 })->name('skprd.combined');
+
+Route::get('/skprd/daftar-wp', [SkprdController::class, 'daftarWp'])->name('skprd.daftar-wp');

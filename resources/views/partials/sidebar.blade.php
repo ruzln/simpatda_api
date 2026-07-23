@@ -30,12 +30,19 @@
         </a>
     </li>
 
-    <!-- <li class="nav-item {{ request()->is('pbb') ? 'active' : '' }}">
+    <!-- <li class="nav-item {{ request()->is('/skprd/daftar-wp') ? 'active' : '' }}">
         <a class="nav-link" href="{{ route('pbb.index') }}">
             <i class="fas fa-hotel"></i>
             <span>PBB-P2</span>
         </a>
     </li> -->
+
+    <li class="nav-item {{ request()->is('/skprd/daftar-wp') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('skprd.daftar-wp') }}">
+            <i class="fas fa-users"></i>
+            <span>Wajib Pajak</span>
+        </a>
+    </li>
 
     <hr class="sidebar-divider d-none d-md-block">
 
